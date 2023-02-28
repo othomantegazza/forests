@@ -1,0 +1,73 @@
+---
+title: Explore
+editor_options: 
+  chunk_output_type: console
+---
+
+|          |                                                             |
+|----------|-------------------------------------------------------------|
+| Article  | [https://www.nature.com/articles/s41597-021-00988-7](https://www.nature.com/articles/s41597-021-00988-7)   |
+| Data     | [https://doi.org/10.6084/m9.figshare.13194095.v1](https://doi.org/10.6084/m9.figshare.13194095.v1)             |
+| Original | [https://www.nature.com/articles/s41597-021-00988-7/tables/4](https://www.nature.com/articles/s41597-021-00988-7/tables/4) |
+
+
+```{r packages}
+library(tidyverse)
+library(mdbr)
+library(sf)
+```
+
+```{r shell-vars}
+old_path <- Sys.getenv("PATH")
+
+Sys.setenv(PATH = paste(old_path, "/opt/homebrew/bin:/opt/homebrew/sbin", sep = ":"))
+```
+
+
+```{r data}
+db <- "data/EPFD_v2.0.mdb"
+
+mdbr::mdb_tables(file = db)
+```
+
+```{r}
+output <- "data/test.txt"
+
+export_mdb(
+    file = db,
+    table = "Polygons_id18_Italy"
+)
+
+st_read(db, drivers = "PGeo")
+```
+
+```{r}
+rgdal::readOGR(db)
+```
+
+
+```{r}
+shapes <- 
+  read_mdb(
+    file = db,
+    table = "Polygons_id18_Italy"
+  )
+```
+
+```{r}
+fname <- system.file("shape/nc.shp", package="sf")
+fname
+nc <- st_read(fname)
+```
+
+```{r}
+export_mdb(
+    file = db,
+    table = "Polygons_id18_Italy",
+    output = "data/test.csv")
+
+st_read(db, driver = "Geomedia")
+
+st_drivers()
+```
+

@@ -1,0 +1,15 @@
+project:
+  title: "Primary Forests in Europe"
+  type: website
+  output-dir: docs
+  render:
+    - "*.qmd"
+  preview:
+    port: 4200
+
+format:
+  html:
+    theme: default
+    #fontsize: 20px
+    toc: true
+
