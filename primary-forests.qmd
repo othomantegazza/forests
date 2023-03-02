@@ -1,8 +1,40 @@
 ---
 title: Explore
+author: Otho Mantegazza
+date: today
 editor_options: 
   chunk_output_type: console
 ---
+
+```{r packages}
+library(tidyverse)
+library(sf)
+library(leaflet)
+library(janitor)
+library(lwgeom)
+library(units)
+library(spData)
+```
+
+```{r data}
+sf_use_s2(FALSE)
+db <- 'data/PrimaryForest_EU_OA_WGS84_polygons/'
+forests <- read_sf(db) %>% clean_names()
+forest_data <- forests %>% as_tibble() %>% select(-geometry)
+```
+
+```{r}
+
+```
+
+
+# Definition
+
+Primary Forest:
+
+> "naturally regenerated forest of native tree species, where there are no clearly visible indications of human activities and the ecological processes are not significantly disturbed."
+
+# Source
 
 |          |                                                             |
 |----------|-------------------------------------------------------------|
@@ -10,64 +42,77 @@ editor_options:
 | Data     | [https://doi.org/10.6084/m9.figshare.13194095.v1](https://doi.org/10.6084/m9.figshare.13194095.v1)             |
 | Original | [https://www.nature.com/articles/s41597-021-00988-7/tables/4](https://www.nature.com/articles/s41597-021-00988-7/tables/4) |
 
+# Areas
 
-```{r packages}
-library(tidyverse)
-library(mdbr)
-library(sf)
-```
+The database records `r nrow(forests)` patches of primary forest in the european continent.
 
-```{r shell-vars}
-old_path <- Sys.getenv("PATH")
+They are divided geographically in:
 
-Sys.setenv(PATH = paste(old_path, "/opt/homebrew/bin:/opt/homebrew/sbin", sep = ":"))
-```
-
-
-```{r data}
-db <- "data/EPFD_v2.0.mdb"
-
-mdbr::mdb_tables(file = db)
+```{r}
+forests$area_m2 <- forests %>% st_area()
 ```
 
 ```{r}
-output <- "data/test.txt"
-
-export_mdb(
-    file = db,
-    table = "Polygons_id18_Italy"
-)
-
-st_read(db, drivers = "PGeo")
-```
-
-```{r}
-rgdal::readOGR(db)
+forest_data <- forests %>% as_tibble() %>% select(-geometry)
 ```
 
 
 ```{r}
-shapes <- 
-  read_mdb(
-    file = db,
-    table = "Polygons_id18_Italy"
-  )
+forests %>% 
+  ggplot() +
+  aes(y = area_m2,
+      x = area_ha) +
+  geom_point()
+```
+
+## Join with countries
+
+```{r}
+forests <- st_join(forests, world["name_long"]) %>% rename(country = name_long)
 ```
 
 ```{r}
-fname <- system.file("shape/nc.shp", package="sf")
-fname
-nc <- st_read(fname)
+ukraine <- 
+  forests %>% 
+  filter(co)
+```
+
+
+## Location
+
+```{r}
+forest_data %>% 
+  group_by(location) %>% 
+  summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area_m2))
+```
+
+## Species
+
+```{r}
+forest_data %>% 
+  group_by(dominant_1) %>% 
+  summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area_m2))
+
+
+forest_data %>% 
+  group_by(dominant_t, dominant_1, dominant_2) %>% 
+  summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area_m2)) %>% 
+  view()
+
+```
+
+
+
+
+```{r}
+leaflet(forests) %>% addTiles() %>% addPolygons()
 ```
 
 ```{r}
-export_mdb(
-    file = db,
-    table = "Polygons_id18_Italy",
-    output = "data/test.csv")
-
-st_read(db, driver = "Geomedia")
-
-st_drivers()
+# forest_lite <- forests %>% st_union()
 ```
+
 
