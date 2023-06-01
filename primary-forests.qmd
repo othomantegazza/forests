@@ -54,18 +54,17 @@ forests <- read_sf(db) %>% clean_names()
 # Read Metadata
 
 ```{r}
-# threats <- 
-#   read_csv('data/threats.csv') %>%
+threats <-
+  read_csv('data/threats.csv')
 #   arrange(code) %>%
 #   pull(threat)
 # disturbance <- 
 #   read_csv('data/disturbance.csv') %>%
 #   arrange(code) %>%
 #   pull(disturbance)
-# forest_type <- 
-#   read_csv('data/forest-type.csv') %>% 
-#   arrange(code) %>% 
-#   pull(forest_type)
+forest_type <- 
+  read_csv('data/forest-type.csv') %>% 
+  arrange(code)
 ```
 
 ```{r}
@@ -90,7 +89,6 @@ forests <- read_sf(db) %>% clean_names()
 ```{r}
 # forests_coded %>% drop_na(dominant_tree_species1)
 # forests_coded %>% count(dominant_tree_species1, sort = T)
-forest_data %>% count(dominant_t, sort = T)
 ```
 
 ```{r}
@@ -128,6 +126,24 @@ Primary Forest:
 | Original | <https://www.nature.com/articles/s41597-021-00988-7/tables/4> |
 | Metadata | <https://www.nature.com/articles/s41597-021-00988-7/tables/5> |
 
+# Recode categorical variables
+
+```{r}
+forests <- 
+  forests %>%
+  left_join(forest_type, by = c('forest_typ' = 'code')) %>%
+  rename(forest_type_code = forest_typ) %>% 
+  left_join(threats, by = c('threat_1' = 'code'))
+  # mutate(
+  #   across(
+  #     .cols = c(forest_typ),
+  #     .fns = ~recode(., !!!forest_type$forest_type)
+  #   )
+  # ) %>% 
+  # pull(forest_typ)
+```
+
+
 # Areas
 
 The database records `r nrow(forests)` patches of primary forest in the european continent.
@@ -140,6 +156,10 @@ forests$area_m2 <- forests %>% st_area()
 
 ```{r}
 forest_data <- forests %>% as_tibble() %>% select(-geometry)
+```
+
+```{r}
+forest_data %>% count(dominant_t, sort = T)
 ```
 
 ```{r}
@@ -189,9 +209,28 @@ forest_data %>%
 ```
 
 ```{r}
-leaflet(forests) %>% addTiles() %>% addPolygons()
+factpal <- colorFactor(topo.colors(length(unique(forests$country))), forests$country)
+
+leaflet(forests) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(stroke = TRUE, fillOpacity = 1, color = ~factpal(country))
 ```
 
 ```{r}
 # forest_lite <- forests %>% st_union()
 ```
+
+```{r}
+
+```
+
+```{r}
+forest_data %>% 
+  count(dominant_t, forest_type) %>% view()
+```
+
+```{r}
+forest_data %>% 
+  count(forest_type, threat) %>% view()
+```
+
