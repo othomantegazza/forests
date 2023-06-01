@@ -6,18 +6,19 @@ editor_options:
   chunk_output_type: console
 ---
 
+# Setup
+
 ```{r packages}
 library(tidyverse)
-library(mdbr)
 library(sf)
 library(leaflet)
 library(janitor)
-library(lwgeom)
-library(units)
-library(spData)
+library(units) # needed to plot forest sizes
+library(spData) # needed to assign state to forest shapes
+# library(lwgeom)
 ```
 
-```{r}
+```{r homebrew-path}
 old_path <- Sys.getenv("PATH")
 Sys.setenv(PATH = paste(old_path, "/opt/homebrew/bin:/opt/homebrew/sbin", sep = ":"))
 ```
@@ -30,25 +31,6 @@ Provided by Francesco Sabatini.
 sf_use_s2(FALSE)
 db <- 'data/PrimaryForest_EU_OA_WGS84_polygons/'
 forests <- read_sf(db) %>% clean_names()
-# forest_data <- forests %>% as_tibble() %>% select(-geometry)
-```
-
-```{r}
-# mdb_forests <- 'data/EPFD_v2.0.mdb'
-```
-
-```{r}
-# mdbr::mdb_tables(file = mdb_forests)
-```
-
-```{r}
-# forest_esri <- 
-#   read_mdb(
-#     file = mdb_forests,
-#     table = "EU_PrimaryForests_Polygons_OA_v20"
-#   ) %>% 
-#   janitor::clean_names() %>% 
-#   select(-shape)
 ```
 
 # Read Metadata
@@ -66,50 +48,6 @@ forest_type <-
   read_csv('data/forest-type.csv') %>% 
   arrange(code)
 ```
-
-```{r}
-# forests_coded <- 
-#   forest_esri %>% 
-#   mutate(
-#     across(
-#       .cols = c(threat_1, threat_2),
-#       .fns = ~recode(., !!!threats)
-#     ),
-#     across(
-#       .cols = c(forest_type1, forest_type2),
-#       .fns = ~recode(., !!!forest_type)
-#     )
-#   )
-```
-
-```{r}
-# forests_coded %>%  write_csv('data/forest-coded-no-shapes.csv')
-```
-
-```{r}
-# forests_coded %>% drop_na(dominant_tree_species1)
-# forests_coded %>% count(dominant_tree_species1, sort = T)
-```
-
-```{r}
-# forests_coded %>% drop_na(dominant_tree_species3)
-```
-
-```{r}
-# forests_coded %>% drop_na(threat_1)
-# forests_coded %>% count(threat_1, sort = T)
-```
-
-```{r}
-# forests_coded %>% drop_na(last_disturbance1_type)
-# forests_coded %>% count(last_disturbance1_type, sort = T)
-```
-
-```{r}
-# forests_coded %>% drop_na(forest_type1)
-# forests_coded %>% count(forest_type1, sort = T)
-```
-
 
 # Definition
 
@@ -134,13 +72,6 @@ forests <-
   left_join(forest_type, by = c('forest_typ' = 'code')) %>%
   rename(forest_type_code = forest_typ) %>% 
   left_join(threats, by = c('threat_1' = 'code'))
-  # mutate(
-  #   across(
-  #     .cols = c(forest_typ),
-  #     .fns = ~recode(., !!!forest_type$forest_type)
-  #   )
-  # ) %>% 
-  # pull(forest_typ)
 ```
 
 
@@ -176,12 +107,6 @@ forests %>%
 forests <- st_join(forests, world["name_long"]) %>% rename(country = name_long)
 ```
 
-```{r}
-# ukraine <- 
-#   forests %>% 
-#   filter(co)
-```
-
 ## Location
 
 ```{r}
@@ -214,14 +139,6 @@ factpal <- colorFactor(topo.colors(length(unique(forests$country))), forests$cou
 leaflet(forests) %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
   addPolygons(stroke = TRUE, fillOpacity = 1, color = ~factpal(country))
-```
-
-```{r}
-# forest_lite <- forests %>% st_union()
-```
-
-```{r}
-
 ```
 
 ```{r}
