@@ -48,11 +48,12 @@ forests_points <-
   read_sf(db_points) %>%
   clean_names()
 
-forests <- 
+forests <-
   bind_rows(
     forests_polygons,
     forests_points
   )
+
 ```
 
 # Read Metadata
@@ -156,11 +157,27 @@ forest_data %>%
 ```
 
 ```{r}
-factpal <- colorFactor(topo.colors(length(unique(forests$country))), forests$country)
+factpal <-
+  colorFactor(
+    topo.colors(
+      length(unique(forests$country))
+    ),
+    forests$country
+  )
 
-leaflet(forests) %>%
+leaflet(
+  forests %>% 
+    filter(st_geometry_type(geometry) == 'MULTIPOLYGON')
+) %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
   addPolygons(stroke = TRUE, fillOpacity = 1, color = ~factpal(country))
+
+leaflet(
+  forests %>% 
+    filter(st_geometry_type(geometry) == 'POINT')
+) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircles()
 ```
 
 ```{r}
