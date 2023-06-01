@@ -127,7 +127,8 @@ forests %>%
 ## Join with countries
 
 ```{r}
-forests <- st_join(forests, world["name_long"]) %>% rename(country = name_long)
+forests <-
+  st_join(forests, world["name_long"]) %>% rename(country = name_long)
 ```
 
 ## Location
@@ -156,6 +157,8 @@ forest_data %>%
 
 ```
 
+# Visualiza on MAP
+
 ```{r}
 factpal <-
   colorFactor(
@@ -174,11 +177,59 @@ leaflet(
 
 leaflet(
   forests %>% 
-    filter(st_geometry_type(geometry) == 'POINT')
+    filter(st_geometry_type(geometry) == 'POINT') %>% view()
 ) %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
   addCircles()
 ```
+
+# Group by forest name
+
+```{r}
+cols_of_interest <- 
+  c(
+    'naturalnes',
+    'dominant_t',
+    'threat_1',
+    'protected',
+    'threat',
+    'forest_type'
+  )
+
+
+forests %>% 
+  as_tibble() %>%
+  group_by(forest_nam) %>% 
+  summarise(
+    across(
+      .cols = all_of(cols_of_interest),
+      .fns = ~length(unique(.))
+    )) %>% 
+  filter(
+    if_any(
+      .cols = all_of(cols_of_interest),
+      .fns = ~ . > 1
+    )
+  ) %>% view()
+
+
+forests_by_name <- 
+  forests %>% 
+  group_by(forest_nam) %>% 
+  summarise(
+    across(
+      .cols = all_of(cols_of_interest),
+      .fns = ~paste(
+        unique(as.character(.)),
+        collapse = ' - ')
+    )
+  ) 
+```
+
+
+# Summaries
+
+
 
 ```{r}
 forest_data %>% 
