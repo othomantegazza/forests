@@ -19,8 +19,14 @@ library(spData) # needed to assign state to forest shapes
 ```
 
 ```{r homebrew-path}
-old_path <- Sys.getenv("PATH")
-Sys.setenv(PATH = paste(old_path, "/opt/homebrew/bin:/opt/homebrew/sbin", sep = ":"))
+old_path <- 
+  Sys.getenv("PATH")
+
+Sys.setenv(
+  PATH = paste(old_path, "/opt/homebrew/bin:/opt/homebrew/sbin", sep = ":")
+  )
+
+sf_use_s2(FALSE)
 ```
 
 # Read Shapefile
@@ -28,9 +34,25 @@ Sys.setenv(PATH = paste(old_path, "/opt/homebrew/bin:/opt/homebrew/sbin", sep = 
 Provided by Francesco Sabatini.
 
 ```{r data}
-sf_use_s2(FALSE)
-db <- 'data/PrimaryForest_EU_OA_WGS84_polygons/'
-forests <- read_sf(db) %>% clean_names()
+db_polygons <- 
+  'data/PrimaryForest_EU_OA_WGS84_polygons/'
+
+forests_polygons <-
+  read_sf(db_polygons) %>%
+  clean_names()
+
+db_points <- 
+  'data/PrimaryForest_EU_OA_WGS84_points/'
+
+forests_points <-
+  read_sf(db_points) %>%
+  clean_names()
+
+forests <- 
+  bind_rows(
+    forests_polygons,
+    forests_points
+  )
 ```
 
 # Read Metadata
