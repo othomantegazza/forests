@@ -52,6 +52,12 @@ forests <-
   bind_rows(
     forests_polygons,
     forests_points
+  ) %>% 
+  mutate(
+    across(
+      .cols = contains('dominant_'),
+      .fns = ~str_to_lower(., '\n') %>% str_trim() %>% str_squish()
+    )
   )
 
 ```
@@ -113,7 +119,7 @@ forest_data <- forests %>% as_tibble() %>% select(-geometry)
 ```
 
 ```{r}
-forest_data %>% count(dominant_t, sort = T)
+# forest_data %>% count(dominant_t, sort = T)
 ```
 
 ```{r}
@@ -134,26 +140,26 @@ forests <-
 ## Location
 
 ```{r}
-forest_data %>% 
-  group_by(location) %>% 
-  summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
-  arrange(desc(area_m2))
+# forest_data %>% 
+#   group_by(location) %>% 
+#   summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
+#   arrange(desc(area_m2))
 ```
 
 ## Species
 
 ```{r}
-forest_data %>% 
-  group_by(dominant_1) %>% 
-  summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
-  arrange(desc(area_m2))
-
-
-forest_data %>% 
-  group_by(dominant_t, dominant_1, dominant_2) %>% 
-  summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
-  arrange(desc(area_m2)) %>% 
-  view()
+# forest_data %>% 
+#   group_by(dominant_1) %>% 
+#   summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
+#   arrange(desc(area_m2))
+# 
+# 
+# forest_data %>% 
+#   group_by(dominant_t, dominant_1, dominant_2) %>% 
+#   summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
+#   arrange(desc(area_m2)) %>% 
+#   view()
 
 ```
 
@@ -168,19 +174,19 @@ factpal <-
     forests$country
   )
 
-leaflet(
-  forests %>% 
-    filter(st_geometry_type(geometry) == 'MULTIPOLYGON')
-) %>%
-  addProviderTiles(providers$CartoDB.Positron) %>%
-  addPolygons(stroke = TRUE, fillOpacity = 1, color = ~factpal(country))
-
-leaflet(
-  forests %>% 
-    filter(st_geometry_type(geometry) == 'POINT') %>% view()
-) %>%
-  addProviderTiles(providers$CartoDB.Positron) %>%
-  addCircles()
+# leaflet(
+#   forests %>% 
+#     filter(st_geometry_type(geometry) == 'MULTIPOLYGON')
+# ) %>%
+#   addProviderTiles(providers$CartoDB.Positron) %>%
+#   addPolygons(stroke = TRUE, fillOpacity = 1, color = ~factpal(country))
+# 
+# leaflet(
+#   forests %>% 
+#     filter(st_geometry_type(geometry) == 'POINT') %>% view()
+# ) %>%
+#   addProviderTiles(providers$CartoDB.Positron) %>%
+#   addCircles()
 ```
 
 # Group by forest name
@@ -191,9 +197,12 @@ cols_of_interest <-
     'naturalnes',
     'dominant_t',
     'threat_1',
+    'last_distu',
+    'protection',
     'protected',
     'threat',
-    'forest_type'
+    'forest_type',
+    'naturalnes'
   )
 
 
@@ -222,18 +231,64 @@ forests_by_name <-
       .fns = ~paste(
         unique(as.character(.)),
         collapse = ' - ')
-    )
+    ),
+    area_m2 = area_m2 %>% sum(na.rm = T)
   ) 
 ```
+
+```{r}
+st_write(
+  forests_by_name %>% st_centroid,
+  'data/forests-by-name/forest-by-name.shp'
+)
+```
+
+```{r}
+# leaflet(
+#   forests_by_name %>% st_centroid()
+# ) %>%
+#   addProviderTiles(providers$CartoDB.Positron) %>%
+#   addCircles()
+```
+
 
 
 # Summaries
 
-
-
 ```{r}
-forest_data %>% 
-  count(dominant_t, forest_type) %>% view()
+area_by_species_all <- 
+  forest_data %>% 
+  group_by(dominant_t, dominant_1, dominant_2) %>% 
+  summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area_m2))
+
+
+area_by_species_0 <-
+  forest_data %>% 
+  group_by(species = dominant_t) %>% 
+  summarise(area_m2_0 = area_m2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area_m2_0))
+
+
+area_by_species_1 <-
+  forest_data %>% 
+  group_by(species = dominant_1) %>% 
+  summarise(area_m2_1 = area_m2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area_m2_1))
+
+area_by_species_2 <-
+  forest_data %>% 
+  group_by(species = dominant_2) %>% 
+  summarise(area_m2_2 = area_m2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area_m2_2))
+
+area_by_species_simple <- 
+  area_by_species_0 %>% 
+  full_join(area_by_species_1) %>% 
+  full_join(area_by_species_2)
+
+area_by_species_simple %>% 
+  write_csv('output/area_by_species_simple.csv')
 ```
 
 ```{r}
