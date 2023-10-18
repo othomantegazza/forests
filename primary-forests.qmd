@@ -1,15 +1,24 @@
 ---
-title: Explore
-author: Otho Mantegazza
+title: "Primary Forests"
+subtitle: "An exploration of the first census"
+author: "Otho Mantegazza"
 date: today
+format:
+  html:
+    toc: true
+    # code-fold: true
+    df-print: paged
+execute: 
+  warning: false
+  echo: false
+  error: false
 editor_options: 
   chunk_output_type: console
 ---
 
-# Setup
-
 ```{r packages}
 library(tidyverse)
+# library(Rcpp)
 library(sf)
 library(leaflet)
 library(janitor)
@@ -29,12 +38,11 @@ Sys.setenv(
 sf_use_s2(FALSE)
 ```
 
-# Read Shapefile
-
-Provided by Francesco Sabatini.
-
 ```{r data}
-db_polygons <- 
+# Read Shapefile
+# Provided by Francesco Sabatini
+
+db_polygons <-  
   'data/PrimaryForest_EU_OA_WGS84_polygons/'
 
 forests_polygons <-
@@ -62,20 +70,39 @@ forests <-
 
 ```
 
-# Read Metadata
-
-```{r}
+```{r read-metadata}
 threats <-
   read_csv('data/threats.csv')
 #   arrange(code) %>%
 #   pull(threat)
-# disturbance <- 
-#   read_csv('data/disturbance.csv') %>%
-#   arrange(code) %>%
-#   pull(disturbance)
+disturbance <- 
+  read_csv('data/disturbance.csv') %>%
+  arrange(code) %>%
+  pull(disturbance)
 forest_type <- 
   read_csv('data/forest-type.csv') %>% 
   arrange(code)
+```
+
+```{r recode-categoricals}
+forests <- 
+  forests %>%
+  left_join(forest_type, by = c('forest_typ' = 'code')) %>%
+  rename(forest_type_code = forest_typ) %>% 
+  left_join(threats, by = c('threat_1' = 'code'))
+```
+
+```{r recode-areas}
+forests$area_m2 <- forests %>% st_area()
+```
+
+```{r data-without-shape}
+forest_data <- forests %>% as_tibble() %>% select(-geometry)
+```
+
+```{r join-with-countries}
+forests <-
+  st_join(forests, world["name_long"]) %>% rename(country = name_long)
 ```
 
 # Definition
@@ -84,7 +111,7 @@ Primary Forest:
 
 > "naturally regenerated forest of native tree species, where there are no clearly visible indications of human activities and the ecological processes are not significantly disturbed."
 
-# Source
+# Sources
 
 |          |                                                               |
 |----------|---------------------------------------------------------------|
@@ -93,101 +120,30 @@ Primary Forest:
 | Original | <https://www.nature.com/articles/s41597-021-00988-7/tables/4> |
 | Metadata | <https://www.nature.com/articles/s41597-021-00988-7/tables/5> |
 
-# Recode categorical variables
-
-```{r}
-forests <- 
-  forests %>%
-  left_join(forest_type, by = c('forest_typ' = 'code')) %>%
-  rename(forest_type_code = forest_typ) %>% 
-  left_join(threats, by = c('threat_1' = 'code'))
-```
-
-
 # Areas
 
 The database records `r nrow(forests)` patches of primary forest in the european continent.
 
-They are divided geographically in:
+# Main Species
 
 ```{r}
-forests$area_m2 <- forests %>% st_area()
-```
+forests_down <- 
+  forests %>% 
+  st_simplify(preserveTopology = T, dTolerance = .01) %>% 
+  filter( ! st_geometry_type(geometry) == 'POINT' )
 
-```{r}
-forest_data <- forests %>% as_tibble() %>% select(-geometry)
-```
-
-```{r}
-# forest_data %>% count(dominant_t, sort = T)
-```
-
-```{r}
-forests %>% 
+forests_down %>%
   ggplot() +
-  aes(y = area_m2,
-      x = area_ha) +
-  geom_point()
+  geom_sf(data = world,
+          fill = '#00000000') +
+  geom_sf(colour = '#00000000') +
+  coord_sf(xlim = st_bbox(forests)[c(1,3)],
+           ylim = st_bbox(forests)[c(2,4)]) +
+  theme_void()
+  
 ```
 
-## Join with countries
 
-```{r}
-forests <-
-  st_join(forests, world["name_long"]) %>% rename(country = name_long)
-```
-
-## Location
-
-```{r}
-# forest_data %>% 
-#   group_by(location) %>% 
-#   summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
-#   arrange(desc(area_m2))
-```
-
-## Species
-
-```{r}
-# forest_data %>% 
-#   group_by(dominant_1) %>% 
-#   summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
-#   arrange(desc(area_m2))
-# 
-# 
-# forest_data %>% 
-#   group_by(dominant_t, dominant_1, dominant_2) %>% 
-#   summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
-#   arrange(desc(area_m2)) %>% 
-#   view()
-
-```
-
-# Visualiza on MAP
-
-```{r}
-factpal <-
-  colorFactor(
-    topo.colors(
-      length(unique(forests$country))
-    ),
-    forests$country
-  )
-
-# leaflet(
-#   forests %>% 
-#     filter(st_geometry_type(geometry) == 'MULTIPOLYGON')
-# ) %>%
-#   addProviderTiles(providers$CartoDB.Positron) %>%
-#   addPolygons(stroke = TRUE, fillOpacity = 1, color = ~factpal(country))
-# 
-# leaflet(
-#   forests %>% 
-#     filter(st_geometry_type(geometry) == 'POINT') %>% view()
-# ) %>%
-#   addProviderTiles(providers$CartoDB.Positron) %>%
-#   addCircles()
-```
 
 # Group by forest name
 
@@ -206,20 +162,20 @@ cols_of_interest <-
   )
 
 
-forests %>% 
-  as_tibble() %>%
-  group_by(forest_nam) %>% 
-  summarise(
-    across(
-      .cols = all_of(cols_of_interest),
-      .fns = ~length(unique(.))
-    )) %>% 
-  filter(
-    if_any(
-      .cols = all_of(cols_of_interest),
-      .fns = ~ . > 1
-    )
-  ) %>% view()
+# forests %>% 
+#   as_tibble() %>%
+#   group_by(forest_nam) %>% 
+#   summarise(
+#     across(
+#       .cols = all_of(cols_of_interest),
+#       .fns = ~length(unique(.))
+#     )) %>% 
+#   filter(
+#     if_any(
+#       .cols = all_of(cols_of_interest),
+#       .fns = ~ . > 1
+#     )
+#   ) %>% view()
 
 
 forests_by_name <- 
@@ -237,10 +193,10 @@ forests_by_name <-
 ```
 
 ```{r}
-st_write(
-  forests_by_name %>% st_centroid,
-  'data/forests-by-name/forest-by-name.shp'
-)
+# st_write(
+#   forests_by_name %>% st_centroid(),
+#   'data/forests-by-name/forest-by-name.shp'
+# )
 ```
 
 ```{r}
@@ -262,13 +218,11 @@ area_by_species_all <-
   summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
   arrange(desc(area_m2))
 
-
 area_by_species_0 <-
   forest_data %>% 
   group_by(species = dominant_t) %>% 
   summarise(area_m2_0 = area_m2 %>% sum(na.rm = T)) %>% 
   arrange(desc(area_m2_0))
-
 
 area_by_species_1 <-
   forest_data %>% 
@@ -285,14 +239,84 @@ area_by_species_2 <-
 area_by_species_simple <- 
   area_by_species_0 %>% 
   full_join(area_by_species_1) %>% 
-  full_join(area_by_species_2)
+  full_join(area_by_species_2) %>% 
+  rowwise() %>% 
+  mutate(area_tot = sum(area_m2_0, area_m2_1, area_m2_2, na.rm = T)) %>% 
+  ungroup() %>% 
+  arrange(desc(area_tot))
 
 area_by_species_simple %>% 
   write_csv('output/area_by_species_simple.csv')
 ```
 
 ```{r}
+# area by forest type
+forest_data %>% 
+  group_by(forest_type) %>% 
+  summarise(area = area_m2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area)) %>% 
+  write_csv('data/size-by-type.csv')
+```
+
+
+```{r}
 forest_data %>% 
   count(forest_type, threat) %>% view()
 ```
 
+```{r}
+forest_data %>% 
+  group_by(forest_type) %>% 
+  summarise(area_m2_2 = area_m2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area_m2_2))
+  
+```
+
+
+```{r location}
+# forest_data %>% 
+#   group_by(location) %>% 
+#   summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
+#   arrange(desc(area_m2))
+```
+
+
+```{r species}
+# forest_data %>% 
+#   group_by(dominant_1) %>% 
+#   summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
+#   arrange(desc(area_m2))
+# 
+# 
+# forest_data %>% 
+#   group_by(dominant_t, dominant_1, dominant_2) %>% 
+#   summarise(area_m2 = area_m2 %>% sum(na.rm = T)) %>% 
+#   arrange(desc(area_m2)) %>% 
+#   view()
+
+```
+
+
+```{r leaflet-map}
+# factpal <-
+#   colorFactor(
+#     topo.colors(
+#       length(unique(forests$country))
+#     ),
+#     forests$country
+#   )
+
+# leaflet(
+#   forests %>% 
+#     filter(st_geometry_type(geometry) == 'MULTIPOLYGON')
+# ) %>%
+#   addProviderTiles(providers$CartoDB.Positron) %>%
+#   addPolygons(stroke = TRUE, fillOpacity = 1, color = ~factpal(country))
+# 
+# leaflet(
+#   forests %>% 
+#     filter(st_geometry_type(geometry) == 'POINT') %>% view()
+# ) %>%
+#   addProviderTiles(providers$CartoDB.Positron) %>%
+#   addCircles()
+```

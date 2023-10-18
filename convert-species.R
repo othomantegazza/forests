@@ -1,5 +1,6 @@
 library(tidyverse)
 library(readxl)
+library(sf)
 
 dat <- read_excel(
   'data/fede-2023-10-12/AnyConv.com__forest-by-name2.xlsx'
@@ -42,6 +43,7 @@ out <-
         ! is.na(.) ~ .,
         str_detect(dmnnt_t_c_119, '^abies') ~ 'Pinaceae',
         str_detect(dmnnt_t_c_119, '^alnus|^alna') ~ 'Betulaceae',
+        str_detect(dmnnt_t_c_119, '^apollonias') ~ 'Lauraceae',
         str_detect(dmnnt_t_c_119, '^betula') ~ 'Betulaceae',
         str_detect(dmnnt_t_c_119, '^carpinus') ~ 'Betulaceae',
         str_detect(dmnnt_t_c_119, '^castan') ~ 'Fagaceae',
@@ -49,6 +51,7 @@ out <-
         str_detect(dmnnt_t_c_119, '^larix') ~ 'Pinaceae',
         str_detect(dmnnt_t_c_119, '^laurus') ~ 'Lauraceae',
         str_detect(dmnnt_t_c_119, '^oak') ~ 'Fagaceae',
+        str_detect(dmnnt_t_c_119, '^ocotea') ~ 'Lauraceae',
         str_detect(dmnnt_t_c_119, '^picea') ~ 'Pinaceae',
         str_detect(dmnnt_t_c_119, '^pinus') ~ 'Pinaceae',
         str_detect(dmnnt_t_c_119, '^quercus') ~ 'Fagaceae',
@@ -60,7 +63,88 @@ out <-
 
 
 out %>% 
-  count(dmnnt_t_c_119, family) %>% view()
+  count(dmnnt_t_c_119, family) %>%
   write_csv(
     'data/spec-fam.csv'
   )
+
+  
+
+# from fede's qgis ----------------------------------------------
+
+# |- Polygons ---------------------------------------------------
+
+d_sf <- 
+    read_sf('data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/polygons/')
+  
+d_sf <- 
+  d_sf %>% 
+    mutate(
+    family = DOMINANT_T %>% 
+      str_to_lower %>% {
+        case_when(
+          str_detect(., '^abies') ~ 'Pinaceae',
+          str_detect(., '^alnus|^alna') ~ 'Betulaceae',
+          str_detect(., '^apollonias') ~ 'Lauraceae',
+          str_detect(., '^betula') ~ 'Betulaceae',
+          str_detect(., '^carpinus') ~ 'Betulaceae',
+          str_detect(., '^castan') ~ 'Fagaceae',
+          str_detect(., '^fagus') ~ 'Fagaceae',
+          str_detect(., '^larix') ~ 'Pinaceae',
+          str_detect(., '^laurus') ~ 'Lauraceae',
+          str_detect(., '^oak') ~ 'Fagaceae',
+          str_detect(., '^ocotea') ~ 'Lauraceae',
+          str_detect(., '^picea') ~ 'Pinaceae',
+          str_detect(., '^pinus') ~ 'Pinaceae',
+          str_detect(., '^quercus') ~ 'Fagaceae',
+          is.na(.) ~ NA_character_,
+          TRUE ~ 'Other'
+        )
+      }
+    )
+  
+d_sf %>% 
+  as_tibble() %>%
+  count(DOMINANT_T, family, sort = T)
+
+d_sf %>% 
+  write_sf('data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/out-polygons.shp')
+
+# |- Points ---------------------------------------------------
+
+
+d_points <- 
+  read_sf('data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/points/')
+
+d_points <- 
+  d_points %>% 
+  mutate(
+    family = DOMINANT_T %>% 
+      str_to_lower %>% {
+        case_when(
+          str_detect(., '^abies') ~ 'Pinaceae',
+          str_detect(., '^alnus|^alna') ~ 'Betulaceae',
+          str_detect(., '^apollonias') ~ 'Lauraceae',
+          str_detect(., '^betula') ~ 'Betulaceae',
+          str_detect(., '^carpinus') ~ 'Betulaceae',
+          str_detect(., '^castan') ~ 'Fagaceae',
+          str_detect(., '^fagus') ~ 'Fagaceae',
+          str_detect(., '^larix') ~ 'Pinaceae',
+          str_detect(., '^laurus') ~ 'Lauraceae',
+          str_detect(., '^oak') ~ 'Fagaceae',
+          str_detect(., '^ocotea') ~ 'Lauraceae',
+          str_detect(., '^picea') ~ 'Pinaceae',
+          str_detect(., '^pinus') ~ 'Pinaceae',
+          str_detect(., '^quercus') ~ 'Fagaceae',
+          is.na(.) ~ NA_character_,
+          TRUE ~ 'Other'
+        )
+      }
+  )
+
+d_points %>% 
+  as_tibble() %>%
+  count(DOMINANT_T, family, sort = T)
+
+d_points %>% 
+  write_sf('data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/out-points.shp')
