@@ -1,6 +1,9 @@
 library(tidyverse)
 library(readxl)
 library(sf)
+library(leaflet)
+library(units)
+sf_use_s2(FALSE)
 
 dat <- read_excel(
   'data/fede-2023-10-12/AnyConv.com__forest-by-name2.xlsx'
@@ -75,7 +78,8 @@ out %>%
 # |- Polygons ---------------------------------------------------
 
 d_sf <- 
-    read_sf('data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/polygons/')
+  read_sf('data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/polygons/')
+  # read_sf('data/PrimaryForest_EU_OA_WGS84_polygons/')
   
 d_sf <- 
   d_sf %>% 
@@ -105,13 +109,30 @@ d_sf <-
   
 d_sf %>% 
   as_tibble() %>%
-  count(DOMINANT_T, family, sort = T)
+  count(BIOGEOGRAP, sort = T) # %>% view()
+
+d_sf_centr <- 
+  d_sf %>% 
+  mutate(area_m2 = d_sf %>% st_area()) %>% 
+  mutate(geometry = geometry %>% st_centroid())
+
+d_sf_centr %>% 
+  as_tibble() %>% 
+  ggplot() +
+  aes(x = Area_ha,
+      y = area_m2) +
+  geom_point()
 
 d_sf %>% 
   write_sf('data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/out-polygons.shp')
 
-# |- Points ---------------------------------------------------
+# leaflet(
+#   d_sf_centr
+# ) %>%
+#   addProviderTiles(providers$CartoDB.Positron) %>%
+#   addCircles()
 
+# |- Points ---------------------------------------------------
 
 d_points <- 
   read_sf('data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/points/')
