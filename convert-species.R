@@ -3,13 +3,18 @@ library(readxl)
 library(sf)
 library(leaflet)
 library(units)
+library(here)
+
 sf_use_s2(FALSE)
+
+forest_type <- 
+  read_csv('data/forest-type.csv') %>% 
+  arrange(code)
 
 dat <- read_excel(
   'data/fede-2023-10-12/AnyConv.com__forest-by-name2.xlsx'
 ) %>% 
   janitor::clean_names()
-
 
 spec_to_fam <- 
   tribble(
@@ -113,7 +118,7 @@ d_sf %>%
 
 d_sf_centr <- 
   d_sf %>% 
-  mutate(area_m2 = d_sf %>% st_area()) %>% 
+  mutate(area_m2 = d_sf %>% st_area() %>% round()) %>% 
   mutate(geometry = geometry %>% st_centroid())
 
 d_sf_centr %>% 
@@ -122,15 +127,6 @@ d_sf_centr %>%
   aes(x = Area_ha,
       y = area_m2) +
   geom_point()
-
-d_sf %>% 
-  write_sf('data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/out-polygons.shp')
-
-# leaflet(
-#   d_sf_centr
-# ) %>%
-#   addProviderTiles(providers$CartoDB.Positron) %>%
-#   addCircles()
 
 # |- Points ---------------------------------------------------
 
@@ -169,3 +165,58 @@ d_points %>%
 
 d_points %>% 
   write_sf('data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/out-points.shp')
+
+
+# put them together ---------------------------------------------
+
+d_all <- 
+  d_sf_centr %>% 
+  bind_rows(d_points)
+
+units(d_all$area_m2) <- make_units(km^2)
+
+d_all <- 
+  d_all %>% 
+  rename(area_km2 = area_m2)
+
+d_all %>% 
+  write_sf(
+    'data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)/out-all-to-points.shp'
+  )
+
+
+# forest type by area -------------------------------------------
+
+d_all %>% 
+  as_tibble() %>% 
+  group_by(BIOGEOGRAP) %>% 
+  summarise(area_km2 = area_km2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area_km2)) %>% 
+  write_csv(
+    here("data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)",
+    "biogeography-by-area.csv"
+    )
+  )
+
+d_all %>% 
+  as_tibble() %>% 
+  group_by(FOREST_TYP) %>% 
+  summarise(area_km2 = area_km2 %>% sum(na.rm = T)) %>% 
+  arrange(desc(area_km2)) %>% 
+  left_join(forest_type,
+            by = c("FOREST_TYP" = "code")) %>% 
+  select(-FOREST_TYP) %>% 
+  write_csv(
+    here("data/fede-2023-10-12/PrimaryForest_EU_OA_WGS84(2)",
+         "forest-type-by-area.csv"
+    )
+  )
+
+
+
+# leaflet(
+#   d_all
+# ) %>%
+#   addProviderTiles(providers$CartoDB.Positron) %>%
+#   addCircles()
+# 
